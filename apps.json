@@ -1,0 +1,26 @@
+[
+  {
+    "id": "casaverde",
+    "label": "Casa Verde",
+    "color": "#1ed27a",
+    "url": "https://casaverdeglite.netlify.app/"
+  },
+  {
+    "id": "cid",
+    "label": "CID",
+    "color": "#2b8fd6",
+    "url": "https://72robertclifford-lgtm.github.io/CID-PANEL/"
+  },
+  {
+    "id": "ltdsud",
+    "label": "LTD Sud",
+    "color": "#f28c28",
+    "url": ""
+  },
+  {
+    "id": "bennys",
+    "label": "Benny's",
+    "color": "#d4a72c",
+    "url": ""
+  }
+]

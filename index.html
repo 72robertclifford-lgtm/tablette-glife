@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tablette GLife</title>
+    <meta name="description" content="Tablette GLife : les applications des entreprises du serveur.">
+    <link rel="icon" href="img/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="tablet" hidden>
+        <div class="frame">
+            <div class="camera"></div>
+            <div class="screen">
+                <!-- Écran de démarrage + vague de couleur à l'ouverture d'une appli -->
+                <div id="boot" class="boot" hidden>
+                    <div class="boot-logo"><img src="img/logo.png" alt=""></div>
+                    <b class="boot-name">GLIFE</b>
+                    <div class="boot-bar"><i></i></div>
+                </div>
+                <div id="burst" class="burst"></div>
+
+                <!-- Barre d'état -->
+                <div class="statusbar">
+                    <span id="clock">00:00</span>
+                    <span class="brand"><img src="img/logo.png" alt=""><b id="server-name">GLife</b></span>
+                    <span class="status-right">
+                        <span class="signal"><i></i><i></i><i></i><i></i></span>
+                        <svg class="wifi" viewBox="0 0 16 12" aria-hidden="true"><path d="M8 11.2 5.6 8.8a3.4 3.4 0 0 1 4.8 0L8 11.2Zm-4.2-4.2-1.4-1.4a7.9 7.9 0 0 1 11.2 0L12.2 7a5.9 5.9 0 0 0-8.4 0ZM.6 3.8-.8 2.4a12.4 12.4 0 0 1 17.6 0l-1.4 1.4A10.4 10.4 0 0 0 .6 3.8Z"/></svg>
+                        <span class="battery-pct">87%</span>
+                        <span class="battery"><i></i></span>
+                    </span>
+                </div>
+
+                <!-- Accueil -->
+                <section id="home" class="view active">
+                    <div class="hero">
+                        <div>
+                            <div id="big-clock">00:00</div>
+                            <div id="date"></div>
+                        </div>
+                        <img class="hero-logo" src="img/logo.png" alt="GLife">
+                    </div>
+                    <div class="section-title">
+                        <span>Entreprises</span>
+                        <button type="button" class="admin-btn" id="admin-btn">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2h.5A1.5 1.5 0 0 1 13.5 8.5v5A1.5 1.5 0 0 1 12 15H4a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 4 7h.5Zm1.5 0h4V5a2 2 0 1 0-4 0v2Z"/></svg>
+                            <span id="admin-btn-label">Admin</span>
+                        </button>
+                    </div>
+                    <div id="apps" class="apps"></div>
+                </section>
+
+                <!-- Appli ouverte -->
+                <section id="app-view" class="view">
+                    <div class="app-header">
+                        <button class="back" data-back type="button" title="Retour">&#8249;</button>
+                        <div class="app-badge" id="app-badge"></div>
+                        <div class="app-title" id="app-title"></div>
+                    </div>
+                    <div class="app-body" id="app-body"></div>
+                </section>
+
+                <!-- Connexion à l'espace admin -->
+                <section id="login-view" class="view">
+                    <div class="app-header">
+                        <button class="back" data-back type="button" title="Retour">&#8249;</button>
+                        <div class="app-title">Espace admin</div>
+                    </div>
+                    <div class="login">
+                        <div class="login-card">
+                            <div class="login-lock">
+                                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2h.5A1.5 1.5 0 0 1 13.5 8.5v5A1.5 1.5 0 0 1 12 15H4a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 4 7h.5Zm1.5 0h4V5a2 2 0 1 0-4 0v2Z"/></svg>
+                            </div>
+                            <b>Accès réservé</b>
+                            <span>Entre le mot de passe admin pour ajouter, modifier ou supprimer des applis.</span>
+                            <div class="login-field">
+                                <input type="password" id="f-password" placeholder="Mot de passe" autocomplete="off" aria-label="Mot de passe admin">
+                                <button type="button" class="eye" id="eye" title="Afficher le mot de passe">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.4 3 1.7 5.6 1 8c.7 2.4 3.4 5 7 5s6.3-2.6 7-5c-.7-2.4-3.4-5-7-5Zm0 8.2A3.2 3.2 0 1 1 8 4.8a3.2 3.2 0 0 1 0 6.4Zm0-1.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
+                                </button>
+                            </div>
+                            <span class="login-error" id="login-error"></span>
+                            <button type="button" class="primary" id="login-btn">Déverrouiller</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Gestion des applis (admin) -->
+                <section id="admin-view" class="view">
+                    <div class="app-header">
+                        <button class="back" data-back type="button" title="Retour">&#8249;</button>
+                        <div class="app-title">Gestion des applis</div>
+                        <span class="admin-badge">Admin</span>
+                        <button type="button" class="ghost logout" id="logout-btn">Se déconnecter</button>
+                    </div>
+                    <div class="admin">
+                        <button type="button" class="primary add-app" id="admin-add">+ Ajouter une appli</button>
+                        <div class="admin-list" id="admin-list"></div>
+                    </div>
+                </section>
+
+                <!-- Formulaire ajout / modification (admin) -->
+                <section id="form-view" class="view">
+                    <div class="app-header">
+                        <button class="back" id="form-back" type="button" title="Retour">&#8249;</button>
+                        <div class="app-badge" id="form-badge"></div>
+                        <div class="app-title" id="form-title">Ajouter une tablette</div>
+                    </div>
+                    <form id="app-form" class="form" autocomplete="off" novalidate>
+                        <label for="f-label"><span><i class="req">*</i> Nom de l'appli</span>
+                            <input id="f-label" name="label" maxlength="24" placeholder="Ex : SAHP">
+                        </label>
+                        <label for="f-url"><span><i class="req">*</i> Lien du site</span>
+                            <input id="f-url" name="url" placeholder="https://tablette-entreprise.fr" inputmode="url">
+                        </label>
+                        <div class="row">
+                            <label for="f-color"><span>Couleur</span>
+                                <input type="color" id="f-color" name="color" value="#1ed27a">
+                            </label>
+                            <label class="grow" for="f-icon"><span>Icône (lien d'image, optionnel)</span>
+                                <input id="f-icon" name="icon" placeholder="https://imgg.fr/r/logo.png">
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="primary" id="submit-btn">Valider</button>
+                            <button type="button" class="danger-outline" id="delete-btn" hidden>Supprimer</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Confirmation de suppression -->
+                <div class="sheet" id="sheet" hidden>
+                    <div class="sheet-card">
+                        <b id="sheet-title">Supprimer ?</b>
+                        <p>L'application disparaîtra de la tablette de tous les joueurs.</p>
+                        <div class="sheet-actions">
+                            <button class="ghost" id="sheet-cancel" type="button">Annuler</button>
+                            <button class="danger" id="sheet-ok" type="button">Supprimer</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="toast"></div>
+                <button class="homebar" data-back type="button" title="Accueil" aria-label="Accueil"></button>
+                <div class="glare" aria-hidden="true"></div>
+            </div>
+            <button class="home-btn" data-back type="button" title="Accueil"></button>
+            <span class="side-btn power" aria-hidden="true"></span>
+            <span class="side-btn vol" aria-hidden="true"></span>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
