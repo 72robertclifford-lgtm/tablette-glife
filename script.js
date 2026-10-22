@@ -76,6 +76,7 @@ function normalize(app) {
         color: app.color,
         icon: app.icon || '',
         builtin: !!app.builtin,
+        hidden: !!app.hidden,
     };
 }
 
@@ -140,7 +141,7 @@ function renderApps() {
     const grid = $('apps');
     grid.innerHTML = '';
 
-    apps.forEach((app) => {
+    apps.filter((a) => !a.hidden).forEach((app) => {
         const el = document.createElement('button');
         el.type = 'button';
         el.className = 'app';
@@ -152,7 +153,7 @@ function renderApps() {
         grid.appendChild(el);
     });
 
-    if (apps.length === 0) {
+    if (!apps.some((a) => !a.hidden)) {
         grid.innerHTML = '<div class="empty">Aucune application disponible pour le moment.</div>';
     }
 
@@ -218,7 +219,7 @@ function renderAdminList() {
     list.innerHTML = '';
     apps.forEach((app) => {
         const row = document.createElement('div');
-        row.className = 'admin-row';
+        row.className = 'admin-row' + (app.hidden ? ' is-hidden' : '');
         row.innerHTML = `
             <div class="app-badge" style="${iconStyle(app)}">${iconInner(app)}</div>
             <div class="admin-info">
@@ -226,7 +227,9 @@ function renderAdminList() {
                 <span>${app.url ? escapeHtml(app.url.replace(/^https?:\/\//i, '')) : 'Pas encore de lien'}</span>
             </div>
             ${app.builtin
-                ? '<span class="admin-tag" title="Appli définie dans config.lua">config.lua</span>'
+                ? (app.hidden
+                    ? `<span class="admin-tag">Supprimée</span><button type="button" class="ghost" data-restore="${escapeHtml(app.id)}">Restaurer</button>`
+                    : `<button type="button" class="danger-outline small" data-del="${escapeHtml(app.id)}">Supprimer</button>`)
                 : `<button type="button" class="ghost" data-edit="${escapeHtml(app.id)}">Modifier</button>
                    <button type="button" class="danger-outline small" data-del="${escapeHtml(app.id)}">Supprimer</button>`}`;
         list.appendChild(row);
@@ -235,6 +238,8 @@ function renderAdminList() {
 }
 
 $('admin-list').addEventListener('click', (e) => {
+    const restore = e.target.closest('[data-restore]');
+    if (restore) { post('hideApp', { id: restore.dataset.restore, hide: false }); return; }
     const edit = e.target.closest('[data-edit]');
     const del = e.target.closest('[data-del]');
     const app = apps.find((a) => a.id === (edit || del)?.dataset[edit ? 'edit' : 'del']);
@@ -385,7 +390,9 @@ $('delete-btn').addEventListener('click', () => {
 });
 $('sheet-cancel').addEventListener('click', () => { $('sheet').hidden = true; });
 $('sheet-ok').addEventListener('click', () => {
-    if (editingId) post('removeApp', { id: editingId });
+    const target = apps.find((a) => a.id === editingId);
+    if (target && target.builtin) post('hideApp', { id: target.id, hide: true });
+    else if (editingId) post('removeApp', { id: editingId });
     editingId = null;
     $('sheet').hidden = true;
     showView('admin-view');
@@ -481,7 +488,9 @@ const Preview = (() => {
         catch (e) { return []; }
     }
     function save() { try { localStorage.setItem(STORE, JSON.stringify(custom)); } catch (e) {} }
-    function all() { return [...CONFIG_APPS, ...custom]; }
+    let hidden = [];
+    try { hidden = JSON.parse(localStorage.getItem(STORE + '_hidden') || '[]'); } catch (e) {}
+    function all() { return [...CONFIG_APPS.map((a) => ({ ...a, hidden: hidden.includes(a.id) })), ...custom]; }
     function push() { window.postMessage({ action: 'apps', apps: all(), isAdmin: admin }, '*'); }
     function msg(text) { window.postMessage({ action: 'toast', message: text }, '*'); }
     function openTablet() { window.postMessage({ action: 'open', serverName: 'GLife', apps: all(), isAdmin: admin }, '*'); }
@@ -496,6 +505,15 @@ const Preview = (() => {
         }
         if (name === 'logout') { admin = false; push(); return Promise.resolve(); }
         if (!admin) return Promise.resolve();
+        if (name === 'hideApp') {
+            hidden = hidden.filter((id) => id !== data.id);
+            if (data.hide) hidden.push(data.id);
+            try { localStorage.setItem(STORE + '_hidden', JSON.stringify(hidden)); } catch (e) {}
+            const app = CONFIG_APPS.find((a) => a.id === data.id);
+            if (app) msg(`Application « ${app.label} » ${data.hide ? 'supprimée' : 'restaurée'}.`);
+            push();
+            return Promise.resolve();
+        }
         const clean = { label: data.label, url: data.url, color: data.color, icon: isHttp(data.icon || '') ? data.icon : '' };
         if (name === 'addApp') {
             custom.push({ ...clean, id: 'custom_' + Date.now() });
