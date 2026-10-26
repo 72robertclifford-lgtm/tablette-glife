@@ -1,0 +1,8 @@
+name = "tablette-glife-api"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Remplace par l'id de ton espace KV (Workers & Pages > KV > créer « tablette-glife-apps »)
+[[kv_namespaces]]
+binding = "APPS_KV"
+id = "REMPLACE_PAR_L_ID_KV"

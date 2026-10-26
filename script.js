@@ -94,7 +94,8 @@ function showView(id) {
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === id));
     if (id !== 'app-view') {
         document.querySelector('.screen').classList.remove('fullsite');
-        $('app-body').innerHTML = ''; // coupe le site en quittant
+        appExtra().innerHTML = '';
+        framesLayer().hidden = true; // le site reste chargé en mémoire : réouverture instantanée
         current = null;
     }
 }
@@ -124,7 +125,8 @@ function launchApp(app, el) {
     burst.classList.remove('go');
     void burst.offsetWidth;
     burst.classList.add('go');
-    setTimeout(() => openApp(app), 300);
+    preloadSite(app.url); // le site charge pendant l'animation
+    setTimeout(() => openApp(app), 220);
 }
 
 // Écran de démarrage avec le logo, à chaque ouverture de la tablette
@@ -150,6 +152,8 @@ function renderApps() {
             <div class="app-icon" style="${iconStyle(app)}">${iconInner(app)}</div>
             <div class="app-label">${escapeHtml(app.label)}</div>`;
         el.addEventListener('click', () => launchApp(app, el));
+        el.addEventListener('mouseenter', () => preloadSite(app.url), { once: true });
+        el.addEventListener('touchstart', () => preloadSite(app.url), { once: true, passive: true });
         grid.appendChild(el);
     });
 
@@ -266,70 +270,124 @@ function openApp(app) {
     renderSite();
 }
 
+// ===== Sites : gardés en mémoire pour s'ouvrir vite =====
+const CAN_EMBED = IN_GAME || location.protocol === 'file:' || document.body.classList.contains('web') || window.GLIFE_API !== undefined;
+const MAX_CACHED = 5;           // nombre de sites gardés chargés en mémoire
+const frameCache = new Map();   // lien -> iframe
+
+function framesLayer() {
+    let l = $('frames');
+    if (!l) {
+        l = document.createElement('div');
+        l.id = 'frames';
+        l.hidden = true;
+        $('app-body').appendChild(l);
+    }
+    return l;
+}
+function appExtra() {
+    let x = $('app-extra');
+    if (!x) {
+        x = document.createElement('div');
+        x.id = 'app-extra';
+        $('app-body').appendChild(x);
+    }
+    return x;
+}
+
+function preloadSite(url) {
+    if (!url || !CAN_EMBED) return null;
+    let f = frameCache.get(url);
+    if (f) {
+        frameCache.delete(url); frameCache.set(url, f); // le plus récent en dernier
+        return f;
+    }
+    f = document.createElement('iframe');
+    f.className = 'site-frame';
+    f.setAttribute('allow', 'autoplay; clipboard-read; clipboard-write; fullscreen');
+    f.addEventListener('load', () => {
+        f.dataset.loaded = '1';
+        if (f.classList.contains('active')) { const l = $('site-loading'); if (l) l.remove(); }
+    });
+    f.src = url;
+    framesLayer().appendChild(f);
+    frameCache.set(url, f);
+    sizeFrame(f);
+    // on libère les plus anciens si trop de sites sont gardés
+    while (frameCache.size > MAX_CACHED) {
+        const [oldUrl, old] = frameCache.entries().next().value;
+        if (old.classList.contains('active')) break;
+        old.remove();
+        frameCache.delete(oldUrl);
+    }
+    return f;
+}
+
 function renderSite() {
     const app = current;
     if (!app) return;
-    const body = $('app-body');
     const url = app.url;
+    const layer = framesLayer();
+    const extra = appExtra();
 
     if (!url) {
-        body.innerHTML = `<div class="placeholder"><b>Bientôt disponible</b>
+        layer.hidden = true;
+        extra.innerHTML = `<div class="placeholder"><b>Bientôt disponible</b>
             <span>Le site de ${escapeHtml(app.label)} n'est pas encore relié.</span></div>`;
         return;
     }
 
     // Le site prend tout l'écran de la tablette ; seuls 3 petits boutons flottent dans un coin
     document.querySelector('.screen').classList.add('fullsite');
-    body.innerHTML = `<div class="stage" id="stage"></div>
-        <div class="floatbar">
+    extra.innerHTML = `<div class="floatbar">
             <button type="button" class="float-btn" data-back-home title="Retour à l'accueil">&#8249;</button>
             <button type="button" class="float-btn" data-reload title="Recharger">&#8635;</button>
             <a class="float-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener" data-external title="Ouvrir dans le navigateur">&#8599;</a>
         </div>`;
 
-    // En jeu, et en ouvrant le fichier sur ton PC : le site s'affiche dans l'appli.
-    // Une page publiée en ligne n'a pas le droit d'intégrer d'autres sites.
-    if (true) { // site web : les sites s'affichent toujours dans la tablette
-        const frame = document.createElement('iframe');
-        frame.id = 'site-frame';
-        $('stage').classList.add('site');
-        frame.src = url;
-        frame.setAttribute('allow', 'autoplay; clipboard-read; clipboard-write; fullscreen');
-        $('stage').appendChild(frame);
-        $('stage').insertAdjacentHTML('beforeend', `<div class="site-loading" id="site-loading">
-            <div class="spinner"></div><span>Chargement de ${escapeHtml(hostOf(url))}...</span></div>`);
-        frame.addEventListener('load', () => { const l = $('site-loading'); if (l) l.remove(); });
-        fitSite();
-    } else {
-        $('stage').classList.add('center');
-        $('stage').innerHTML = `<div class="placeholder"><b>${escapeHtml(app.label)}</b>
+    if (!CAN_EMBED) {
+        layer.hidden = true;
+        extra.insertAdjacentHTML('afterbegin', `<div class="placeholder"><b>${escapeHtml(app.label)}</b>
             <span>En jeu, le site s'affiche ici, dans l'appli.<br>
             Cette page en ligne n'a pas le droit d'afficher d'autres sites.<br>
             Pour le voir dans la tablette, ouvre le fichier <b>Tablette-GLife-TEST.html</b> sur ton PC.</span>
             <code>${escapeHtml(url)}</code>
-            <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ouvrir le site dans un nouvel onglet</a></div>`;
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ouvrir le site dans un nouvel onglet</a></div>`);
+        return;
+    }
+
+    const frame = preloadSite(url);
+    layer.querySelectorAll('.site-frame').forEach((f) => f.classList.toggle('active', f === frame));
+    layer.hidden = false;
+    fitSite();
+    if (!frame.dataset.loaded) {
+        extra.insertAdjacentHTML('afterbegin', `<div class="site-loading" id="site-loading">
+            <div class="spinner"></div><span>Chargement de ${escapeHtml(hostOf(url))}...</span></div>`);
     }
 }
 
 // Le site est chargé en largeur PC puis réduit pour tenir en entier dans l'écran de la tablette
 const SITE_WIDTH = 1280;
-function fitSite() {
-    const stage = $('stage'), frame = $('site-frame');
-    if (!stage || !frame) return;
-    const w = stage.clientWidth, h = stage.clientHeight;
+function sizeFrame(f) {
+    const body = $('app-body');
+    const w = body.clientWidth || document.querySelector('.screen').clientWidth;
+    const h = body.clientHeight || document.querySelector('.screen').clientHeight;
     if (!w || !h) return;
     const s = Math.min(1, w / SITE_WIDTH);
-    frame.style.width = `${w / s}px`;
-    frame.style.height = `${h / s}px`;
-    frame.style.transform = `scale(${s})`;
+    f.style.width = `${w / s}px`;
+    f.style.height = `${h / s}px`;
+    f.style.transform = `scale(${s})`;
+}
+function fitSite() {
+    framesLayer().querySelectorAll('.site-frame').forEach(sizeFrame);
 }
 new ResizeObserver(fitSite).observe(document.querySelector('.screen'));
 
 $('app-body').addEventListener('click', (e) => {
     if (e.target.closest('[data-back-home]')) return goHome();
     if (e.target.closest('[data-reload]')) {
-        const f = $('site-frame');
-        if (f) { const src = f.src; f.src = 'about:blank'; setTimeout(() => { f.src = src; }, 50); }
+        const f = framesLayer().querySelector('.site-frame.active');
+        if (f) { delete f.dataset.loaded; f.src = f.src; }
         return;
     }
     const ext = e.target.closest('[data-external]');
@@ -463,103 +521,85 @@ window.addEventListener('message', ({ data }) => {
 });
 
 /* =====================================================================
-   TEST HORS JEU : actif seulement quand la page est ouverte dans un
-   navigateur. Remplace le serveur (ajouts gardés dans le navigateur)
-   et ajoute le champ « Tester un site ».
+   SITE WEB : la liste des applis vient du serveur (Cloudflare Worker),
+   la même pour tout le monde. Les ajouts / suppressions sont définitifs.
    ===================================================================== */
 const Preview = (() => {
-    const STORE = 'glife_tablette_web_sites';
-    let CONFIG_APPS = [
-        { id: 'casaverde', label: 'Casa Verde', color: '#1ed27a', url: 'https://casaverdeglite.netlify.app/', builtin: true },
-        { id: 'ltdsud', label: 'LTD Sud', color: '#f28c28', url: '', builtin: true },
-        { id: 'bennys', label: "Benny's", color: '#d4a72c', url: '', builtin: true },
-    ];
-
-    let custom = load();
+    const API = (window.GLIFE_API || '').replace(/\/+$/, '');
     let admin = false;
-    const PASSWORD_HASH = 'fdffebedb5e9d90bb368a08bed24632dd67c7e041a5ef590b86eab8d8b3b1a01';
-    async function sha256(text) {
-        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-        return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    let password = '';
+    try { password = sessionStorage.getItem('glife_admin_pw') || ''; } catch (e) {}
+
+    const msg = (text) => window.postMessage({ action: 'toast', message: text }, '*');
+    const send = (list) => window.postMessage({ action: 'apps', apps: list.map((a) => ({ ...a, builtin: false })), isAdmin: admin }, '*');
+
+    async function call(method, path, body) {
+        const r = await fetch(API + path, {
+            method,
+            headers: { 'Content-Type': 'application/json', ...(password ? { 'X-Admin-Password': password } : {}) },
+            body: body ? JSON.stringify(body) : undefined,
+            cache: 'no-store',
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Erreur du serveur.');
+        return data;
     }
 
-    function load() {
-        try { const v = JSON.parse(localStorage.getItem(STORE) || '[]'); return Array.isArray(v) ? v : []; }
-        catch (e) { return []; }
+    async function refresh() {
+        try { send(await call('GET', '/apps')); }
+        catch (e) { msg('Impossible de joindre le serveur des applis.'); }
     }
-    function save() { try { localStorage.setItem(STORE, JSON.stringify(custom)); } catch (e) {} }
-    let hidden = [];
-    try { hidden = JSON.parse(localStorage.getItem(STORE + '_hidden') || '[]'); } catch (e) {}
-    function all() { return [...CONFIG_APPS.map((a) => ({ ...a, hidden: hidden.includes(a.id) })), ...custom]; }
-    function push() { window.postMessage({ action: 'apps', apps: all(), isAdmin: admin }, '*'); }
-    function msg(text) { window.postMessage({ action: 'toast', message: text }, '*'); }
-    function openTablet() { window.postMessage({ action: 'open', serverName: 'GLife', apps: all(), isAdmin: admin }, '*'); }
 
-    function handle(name, data) {
-        if (name === 'login') {
-            return sha256(data.password).then((h) => {
-                const ok = h === PASSWORD_HASH;
-                if (ok) admin = true;
-                setTimeout(() => window.postMessage({ action: 'loginResult', ok, message: ok ? '' : 'Mot de passe incorrect.' }, '*'), 250);
-            });
+    async function handle(name, data) {
+        try {
+            if (name === 'login') {
+                password = data.password;
+                await call('POST', '/login');
+                admin = true;
+                try { sessionStorage.setItem('glife_admin_pw', password); } catch (e) {}
+                window.postMessage({ action: 'loginResult', ok: true }, '*');
+                return refresh();
+            }
+            if (name === 'logout') {
+                admin = false; password = '';
+                try { sessionStorage.removeItem('glife_admin_pw'); } catch (e) {}
+                return refresh();
+            }
+            if (!admin) return;
+            let list;
+            if (name === 'addApp') { list = await call('POST', '/apps', data); msg(`Application « ${data.label} » ajoutée pour tout le monde.`); }
+            if (name === 'editApp') { list = await call('PUT', '/apps/' + encodeURIComponent(data.id), data); msg(`Application « ${data.label} » modifiée.`); }
+            if (name === 'removeApp' || (name === 'hideApp' && data.hide)) { list = await call('DELETE', '/apps/' + encodeURIComponent(data.id)); msg('Application supprimée définitivement.'); }
+            if (list) send(list);
+        } catch (e) {
+            if (name === 'login') {
+                password = '';
+                window.postMessage({ action: 'loginResult', ok: false, message: e.message }, '*');
+            } else {
+                msg(e.message);
+            }
         }
-        if (name === 'logout') { admin = false; push(); return Promise.resolve(); }
-        if (!admin) return Promise.resolve();
-        if (name === 'hideApp') {
-            hidden = hidden.filter((id) => id !== data.id);
-            if (data.hide) hidden.push(data.id);
-            try { localStorage.setItem(STORE + '_hidden', JSON.stringify(hidden)); } catch (e) {}
-            const app = CONFIG_APPS.find((a) => a.id === data.id);
-            if (app) msg(`Application « ${app.label} » ${data.hide ? 'supprimée' : 'restaurée'}.`);
-            push();
-            return Promise.resolve();
-        }
-        const clean = { label: data.label, url: data.url, color: data.color, icon: isHttp(data.icon || '') ? data.icon : '' };
-        if (name === 'addApp') {
-            custom.push({ ...clean, id: 'custom_' + Date.now() });
-            msg(`Application « ${clean.label} » ajoutée.`);
-        } else if (name === 'editApp') {
-            const i = custom.findIndex((a) => a.id === data.id);
-            if (i >= 0) custom[i] = { ...clean, id: data.id };
-            msg(`Application « ${clean.label} » modifiée.`);
-        } else if (name === 'removeApp') {
-            const app = custom.find((a) => a.id === data.id);
-            custom = custom.filter((a) => a.id !== data.id);
-            if (app) msg(`Application « ${app.label} » supprimée.`);
-        }
-        save();
-        push();
-        return Promise.resolve();
     }
 
     function closed() { $('closed').hidden = false; }
 
     async function boot() {
-        try {
-            const r = await fetch('apps.json', { cache: 'no-store' });
-            const list = await r.json();
-            if (Array.isArray(list)) CONFIG_APPS = list.map((a, i) => ({ id: a.id || 'app' + i, label: a.label, url: a.url || '', color: a.color, icon: a.icon || '', builtin: true }));
-        } catch (e) { /* apps.json absent : on garde la liste par défaut */ }
         document.body.classList.add('preview', 'web');
         tablet.insertAdjacentHTML('afterend', `
             <div class="closed" id="closed" hidden>
                 <span>Tablette rangée.</span>
                 <button class="primary" id="reopen" type="button">Rouvrir la tablette</button>
             </div>`);
-
-        const quickTest = () => {
-            if (!$('qt-url')) return;
-            let url = $('qt-url').value.trim();
-            if (!url) return msg('Colle un lien à tester.');
-            if (!isHttp(url)) url = 'https://' + url;
-            $('closed').hidden = true;
-            if (tablet.hidden) openTablet();
-            setTimeout(() => openApp(normalize({ id: 'quicktest', label: hostOf(url), color: '#1ed27a', url, builtin: true })), 30);
-        };
-
-        $('reopen').addEventListener('click', () => { $('closed').hidden = true; openTablet(); });
-
-        openTablet();
+        let list = [];
+        try { list = await call('GET', '/apps'); } catch (e) { msg('Impossible de joindre le serveur des applis.'); }
+        const open = () => window.postMessage({ action: 'open', serverName: 'GLife', apps: list.map((a) => ({ ...a, builtin: false })), isAdmin: admin }, '*');
+        $('reopen').addEventListener('click', () => { $('closed').hidden = true; open(); });
+        // reconnexion automatique dans le même onglet
+        if (password) { try { await call('POST', '/login'); admin = true; } catch (e) { password = ''; } }
+        open();
+        // Tout le monde voit les mises à jour : on recharge la liste régulièrement
+        setInterval(() => { if (!document.hidden && $('home').classList.contains('active')) refresh(); }, 20000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     }
 
     return { handle, closed, boot };

@@ -1553,6 +1553,15 @@ body.preview .frame { width: 100%; max-height: none; }
 
 .admin-row.is-hidden { opacity: .55; }
 
+/* Sites gardés en mémoire (ouverture rapide) */
+#frames { position: absolute; inset: 0; overflow: hidden; background: #000; }
+#frames .site-frame { position: absolute; top: 0; left: 0; border: none; background: #fff; transform-origin: 0 0; visibility: hidden; }
+#frames .site-frame.active { visibility: visible; }
+#app-extra { position: absolute; inset: 0; display: flex; flex-direction: column; pointer-events: none; z-index: 2; }
+#app-extra > * { pointer-events: auto; }
+#app-extra .site-loading { pointer-events: none; }
+#app-body { position: relative; }
+
 /* Version site web */
 body.web { justify-content: center; min-height: 100%; height: 100%; padding-block: 16px; }
 body.web #tablet { width: min(1200px, 100%); }
