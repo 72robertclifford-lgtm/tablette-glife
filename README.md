@@ -21,3 +21,9 @@ Le mot de passe n'est jamais dans le code du site : c'est le Worker qui le véri
 ## Utilisation
 Bouton **Admin** sur l'accueil → mot de passe → **Gestion des applis** : ajouter, modifier, supprimer.
 Les autres visiteurs voient les changements en moins de 20 secondes, sans recharger la page.
+
+## Ressource FiveM (dossier `fivem/`)
+Copie le dossier `fivem` dans `resources/` sous le nom `glife_tablette`, puis :
+1. copie `server_config.example.lua` en `server_config.lua` et mets ton mot de passe admin ;
+2. ajoute `ensure glife_tablette` dans `server.cfg`.
+En jeu : touche **F5** ou `/tablette`.

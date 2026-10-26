@@ -525,7 +525,9 @@ window.addEventListener('message', ({ data }) => {
    la même pour tout le monde. Les ajouts / suppressions sont définitifs.
    ===================================================================== */
 const Preview = (() => {
-    const API = (window.GLIFE_API || '').replace(/\/+$/, '');
+    const RAW_API = (window.GLIFE_API || '').replace(/\/+$/, '');
+    // Tant que le Worker n'est pas configuré, le site lit apps.json (lecture seule)
+    const API = /^https?:\/\//.test(RAW_API) ? RAW_API : '';
     let admin = false;
     let password = '';
     try { password = sessionStorage.getItem('glife_admin_pw') || ''; } catch (e) {}
@@ -534,6 +536,10 @@ const Preview = (() => {
     const send = (list) => window.postMessage({ action: 'apps', apps: list.map((a) => ({ ...a, builtin: false })), isAdmin: admin }, '*');
 
     async function call(method, path, body) {
+        if (!API) {
+            if (method === 'GET') { const r = await fetch('apps.json', { cache: 'no-store' }); return r.json(); }
+            throw new Error("Serveur des applis pas encore configuré (voir README).");
+        }
         const r = await fetch(API + path, {
             method,
             headers: { 'Content-Type': 'application/json', ...(password ? { 'X-Admin-Password': password } : {}) },
